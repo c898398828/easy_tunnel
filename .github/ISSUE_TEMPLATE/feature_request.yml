@@ -1,0 +1,29 @@
+name: 特性建议 (Feature Request)
+description: 为 Easy Tunnel 提出新的功能构想、协议支持或体验改进
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你为 Easy Tunnel 的发展提供宝贵意见！请尽可能详尽地描述你的构想。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你的需求或痛点背景
+      description: 目前缺少什么功能？遇到了什么不便？
+      placeholder: 例如：希望能够支持局域网穿透或 FRP 协议整合...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 建议的解决方案
+      description: 你希望 Easy Tunnel 如何实现该功能或界面交互？
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案
+      description: 你是否考虑过其他现有的替代方案或临时处理方式？

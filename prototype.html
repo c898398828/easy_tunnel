@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Easy Tunnel v1.0.1 - 内网穿透助手</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            app: {
+              window: '#0d0f12',     // 最外层窗口底色
+              sidebar: '#121418',    // 左侧导航栏底色 (完美对标图1)
+              card: '#16191f',       // 右侧卡片背景底色
+              cardHover: '#1c2028',  // 卡片 Hover
+              border: '#21252f',     // 极细描边
+              borderLight: '#2c3340',// 亮边框
+              textMain: '#ededed',   // 主文字高亮白
+              textSub: '#8a93a5',    // 次级文字
+              textMuted: '#525a6b',  // 弱化提示文字
+              tagGreen: '#10b981',   // 翡翠绿 (已接管状态)
+              tagBlue: '#3b82f6',    // 标识蓝
+              tagYellow: '#f59e0b',  // 预警琥珀黄
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    * {
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', Consolas, monospace;
+    }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #262c38; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #353d4d; }
+
+    /* 呼吸脉冲动画 */
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(1.25); }
+    }
+    .pulse-dot {
+      animation: pulse-green 2s infinite ease-in-out;
+    }
+
+    /* 柱状图 Hover 工具提示 */
+    .bar-group:hover .bar-tooltip {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="bg-app-window text-app-textMain flex flex-col h-screen overflow-hidden text-[13px]">
+
+  <!-- ================= 顶层 Windows 原生标题栏集成 (复刻图1顶栏) ================= -->
+  <header class="h-9 bg-app-sidebar flex items-center justify-between px-3 text-xs select-none border-b border-app-border shrink-0 z-30">
+    <!-- 左上角应用 Logo 与标题 -->
+    <div class="flex items-center space-x-2 pl-0.5">
+      <div class="w-4 h-4 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-black font-extrabold text-[9px] shadow-sm">
+        <i class="fa-solid fa-infinity"></i>
+      </div>
+      <span class="font-semibold text-slate-100 tracking-wide text-xs">Easy Tunnel</span>
+      <span class="text-[11px] text-slate-500 font-mono">v1.0.1</span>
+    </div>
+
+    <!-- 右上角 Windows 控制按钮 -->
+    <div class="flex items-center -mr-3">
+      <button class="w-10 h-9 hover:bg-slate-800/80 flex items-center justify-center transition-colors text-slate-400 hover:text-white" title="最小化到托盘">
+        <i class="fa-regular fa-window-minimize text-[9px]"></i>
+      </button>
+      <button class="w-10 h-9 hover:bg-slate-800/80 flex items-center justify-center transition-colors text-slate-400 hover:text-white" title="最大化">
+        <i class="fa-regular fa-square text-[9px]"></i>
+      </button>
+      <button onclick="showToast('已最小化到 Windows 系统托盘常驻运行', 'info')" class="w-11 h-9 hover:bg-red-600 flex items-center justify-center transition-colors text-slate-400 hover:text-white" title="关闭 (托盘后台)">
+        <i class="fa-solid fa-xmark text-sm"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= 主体区域：左侧边栏 + 右主视区 ================= -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- 1. 左侧边栏 (严格复刻图1/图2的配色、图标与接管徽标) -->
+    <aside class="w-56 bg-app-sidebar border-r border-app-border flex flex-col shrink-0 py-3.5 select-none">
+
+      <!-- 核心页面导航 (高亮蓝折线图与黄柱状图) -->
+      <div class="px-2.5 space-y-1">
+        <!-- 数据概览 (激活态：圆角矩形深色微高亮背景) -->
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-semibold bg-[#1e222b] text-white transition-all shadow-xs border border-slate-700/20">
+          <i class="fa-solid fa-chart-line text-sky-400 text-sm"></i>
+          <span>数据概览</span>
+        </button>
+
+        <!-- 穿透调用详细 (黄柱图) -->
+        <button onclick="switchTab('tunnels')" id="nav-tunnels" class="w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-app-textSub hover:text-white hover:bg-app-card/60 transition-colors">
+          <i class="fa-solid fa-chart-simple text-amber-400 text-sm"></i>
+          <span>隧道管理</span>
+        </button>
+      </div>
+
+      <!-- 分组：模型配置 / 穿透引擎 (带精细的“已接管”绿色药丸标签) -->
+      <div class="px-5 pt-5 pb-1.5 text-[11px] font-semibold text-app-textMuted tracking-wider">穿透引擎配置</div>
+      <div class="px-2.5 space-y-1">
+        <!-- Cloudflare (支持点击弹出配置弹窗) -->
+        <div onclick="openModal('cfModal')" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-app-card/60 transition-colors cursor-pointer group">
+          <div class="flex items-center space-x-2.5">
+            <i class="fa-brands fa-cloudflare text-amber-500 text-sm"></i>
+            <span class="text-slate-200">Cloudflare</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] font-medium bg-emerald-950/70 text-emerald-400 border border-emerald-700/50 px-2 py-0.5 rounded-full">已接管</span>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-slate-400 transition-colors"></i>
+          </div>
+        </div>
+
+        <!-- ngrok (支持点击弹出配置弹窗) -->
+        <div onclick="openModal('ngModal')" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-app-card/60 transition-colors cursor-pointer group">
+          <div class="flex items-center space-x-2.5">
+            <i class="fa-solid fa-cube text-indigo-400 text-sm"></i>
+            <span class="text-slate-300">ngrok</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700/60 px-2 py-0.5 rounded-full">已就绪</span>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-slate-400 transition-colors"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 分组：设置 (复刻图1下部图标风格) -->
+      <div class="px-5 pt-5 pb-1.5 text-[11px] font-semibold text-app-textMuted tracking-wider">设置</div>
+      <div class="px-2.5 space-y-1">
+        <!-- 插件配置 / 新建条目 -->
+        <button onclick="openModal('addModal')" class="w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-app-textSub hover:text-white hover:bg-app-card/60 transition-colors">
+          <i class="fa-solid fa-puzzle-piece text-cyan-400 text-sm"></i>
+          <span>新建穿透条目</span>
+        </button>
+
+        <!-- 系统设置 (齿轮图标) -->
+        <button onclick="switchTab('settings')" id="nav-settings" class="w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-app-textSub hover:text-white hover:bg-app-card/60 transition-colors">
+          <i class="fa-solid fa-gear text-slate-400 text-sm"></i>
+          <span>系统设置</span>
+        </button>
+
+        <!-- 使用教程 (蓝色信息图标) -->
+        <button onclick="showToast('正在打开新手使用教程文档...', 'info')" class="w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-app-textSub hover:text-white hover:bg-app-card/60 transition-colors">
+          <i class="fa-solid fa-circle-info text-sky-400 text-sm"></i>
+          <span>使用教程</span>
+        </button>
+      </div>
+
+      <!-- 侧边栏底部 Docker 运行指示器 -->
+      <div class="mt-auto px-3.5 pt-2">
+        <div class="bg-[#16191f] border border-app-border rounded-xl p-2.5 flex items-center justify-between text-[11px]">
+          <div class="flex items-center space-x-2">
+            <i class="fa-brands fa-docker text-blue-400 text-sm"></i>
+            <span class="text-slate-300 font-medium">Docker 服务</span>
+          </div>
+          <span class="flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+            3个容器在线
+          </span>
+        </div>
+      </div>
+
+    </aside>
+
+
+    <!-- ================= 2. 右侧主体展示区 ================= -->
+    <main class="flex-1 flex flex-col overflow-hidden bg-app-window">
+
+      <!-- ================= 视图 A：数据概览 (像素级复刻图 1 细节) ================= -->
+      <div id="view-dashboard" class="flex-1 flex flex-col overflow-y-auto px-8 py-6 space-y-5">
+
+        <!-- 顶部操作栏：大标题 "概览" + 右侧时间范围分段控制胶囊 -->
+        <div class="flex items-center justify-between shrink-0">
+          <h1 class="text-xl font-bold tracking-tight text-white">概览</h1>
+
+          <!-- 时间选择胶囊 (图1: 近1小时 / 近1自然日 / 近10分钟 / 近一周 / 近一个月[高亮] / 自定义 / 刷新) -->
+          <div class="flex items-center bg-app-card border border-app-border rounded-xl p-1 text-xs select-none">
+            <button onclick="selectTimeRange(this)" class="time-tab px-3 py-1 rounded-lg text-app-textSub hover:text-white transition-colors">近1小时</button>
+            <button onclick="selectTimeRange(this)" class="time-tab px-3 py-1 rounded-lg text-app-textSub hover:text-white transition-colors">近1自然日</button>
+            <button onclick="selectTimeRange(this)" class="time-tab px-3 py-1 rounded-lg text-app-textSub hover:text-white transition-colors">近10分钟</button>
+            <button onclick="selectTimeRange(this)" class="time-tab px-3 py-1 rounded-lg text-app-textSub hover:text-white transition-colors">近一周</button>
+            <button onclick="selectTimeRange(this)" class="time-tab px-3 py-1 rounded-lg text-white font-medium bg-[#2a2f3a] shadow-xs">近一个月</button>
+            <button onclick="selectTimeRange(this)" class="time-tab px-3 py-1 rounded-lg text-app-textSub hover:text-white transition-colors">自定义</button>
+            <div class="h-3.5 w-px bg-app-border mx-1"></div>
+            <button onclick="refreshData()" class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-white transition-colors" title="刷新数据">
+              <i class="fa-solid fa-arrows-rotate text-xs" id="dash-refresh"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 核心图表卡片：堆叠柱状图 + 平均虚线 + 悬浮浮窗 (完全复刻图 1 上半部图表) -->
+        <div class="bg-app-card border border-app-border rounded-2xl p-5 relative select-none">
+
+          <!-- 图表顶栏信息与浮窗 -->
+          <div class="relative h-44 w-full flex flex-col justify-end">
+
+            <!-- 交互式悬浮数据浮窗 (复刻图 1 浮窗: 10/21 总请求: 47.2M...) -->
+            <div class="absolute top-1 left-[48%] -translate-x-1/2 bg-[#121418]/95 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 shadow-2xl z-20 pointer-events-none w-52 text-xs space-y-1.5">
+              <div class="font-bold text-white text-xs border-b border-slate-800 pb-1">10/21 (今日高峰)</div>
+              <div class="flex items-center justify-between text-slate-300">
+                <span class="text-slate-400">总穿透请求:</span>
+                <span class="font-mono font-bold text-white">47.2k</span>
+              </div>
+              <div class="flex items-center space-x-1.5 text-[11px] text-slate-300">
+                <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
+                <span>直连调用 (非缓存):</span>
+                <span class="font-mono text-white ml-auto">4.7k</span>
+              </div>
+              <div class="flex items-center space-x-1.5 text-[11px] text-slate-300">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                <span>边缘缓存命中:</span>
+                <span class="font-mono text-white ml-auto">42.5k</span>
+              </div>
+              <div class="flex items-center space-x-1.5 text-[11px] text-slate-300">
+                <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                <span>数据下行响应:</span>
+                <span class="font-mono text-white ml-auto">38.3 MB</span>
+              </div>
+            </div>
+
+            <!-- "平均" 虚线 (复刻图 1 黄色虚线) -->
+            <div class="absolute top-[48%] left-0 right-0 flex items-center z-10 pointer-events-none">
+              <span class="text-[11px] font-semibold text-amber-400 bg-app-card pr-1 pl-0.5">平均</span>
+              <div class="flex-1 border-b border-dashed border-amber-400/70"></div>
+            </div>
+
+            <!-- 柱状图柱体集合 (30 天柱列，背景深灰柱 + 绿蓝彩色高亮段) -->
+            <div class="flex items-end justify-between h-36 w-full px-2 gap-1.5 z-0">
+              <!-- 柱体生成 (深灰底柱，高亮天用绿/蓝双段堆叠) -->
+              <div class="flex-1 h-[75%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[68%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[70%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[65%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[60%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[55%] bg-[#212632] rounded-t-xs"></div>
+              <!-- 10/16 激活柱 -->
+              <div class="flex-1 h-[95%] flex flex-col justify-end rounded-t-xs overflow-hidden">
+                <div class="h-[75%] bg-emerald-400"></div>
+                <div class="h-[25%] bg-sky-500"></div>
+              </div>
+              <div class="flex-1 h-[65%] bg-[#212632] rounded-t-xs"></div>
+              <!-- 10/19 激活柱 -->
+              <div class="flex-1 h-[30%] flex flex-col justify-end rounded-t-xs overflow-hidden">
+                <div class="h-[60%] bg-emerald-400"></div>
+                <div class="h-[40%] bg-sky-500"></div>
+              </div>
+              <!-- 10/21 焦点柱 (最高) -->
+              <div class="flex-1 h-[100%] flex flex-col justify-end rounded-t-xs overflow-hidden shadow-lg shadow-emerald-500/20">
+                <div class="h-[80%] bg-emerald-400"></div>
+                <div class="h-[20%] bg-sky-500"></div>
+              </div>
+              <div class="flex-1 h-[70%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[68%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[62%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[66%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[58%] bg-[#212632] rounded-t-xs"></div>
+              <!-- 10/28 激活柱 -->
+              <div class="flex-1 h-[22%] flex flex-col justify-end rounded-t-xs overflow-hidden">
+                <div class="h-[70%] bg-emerald-400"></div>
+                <div class="h-[30%] bg-sky-500"></div>
+              </div>
+              <div class="flex-1 h-[65%] bg-[#212632] rounded-t-xs"></div>
+              <!-- 11/1 激活柱 -->
+              <div class="flex-1 h-[24%] flex flex-col justify-end rounded-t-xs overflow-hidden">
+                <div class="h-[60%] bg-emerald-400"></div>
+                <div class="h-[40%] bg-sky-500"></div>
+              </div>
+              <div class="flex-1 h-[62%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[67%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[70%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[72%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[65%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[68%] bg-[#212632] rounded-t-xs"></div>
+              <div class="flex-1 h-[60%] bg-[#212632] rounded-t-xs"></div>
+            </div>
+
+          </div>
+
+          <!-- X 轴日期标注 (对齐图 1: 10/13, 10/16, 10/19, 10/22, 周日, 10/28, 周六, 11/3, 11/6, 11/9, 11/12) -->
+          <div class="flex justify-between text-[11px] text-app-textMuted pt-2 px-2 border-t border-app-border font-mono">
+            <span>10/13</span>
+            <span>10/16</span>
+            <span>10/19</span>
+            <span>10/22</span>
+            <span>周日</span>
+            <span>10/28</span>
+            <span>周六</span>
+            <span>11/3</span>
+            <span>11/6</span>
+            <span>11/9</span>
+            <span>11/12</span>
+          </div>
+
+        </div>
+
+        <!-- 核心指标 4 宫格卡片 (像素级复刻图 1: 缓存命中率 / LLM调用 / Token消耗 / 价值估算) -->
+        <div class="grid grid-cols-4 gap-4">
+
+          <!-- 卡片 1：缓存命中率 (半圆绿色弧线仪表盘 89.95%) -->
+          <div class="bg-app-card border border-app-border rounded-2xl p-4.5 flex flex-col justify-between">
+            <div class="flex items-center space-x-1.5 text-xs text-app-textSub font-medium">
+              <span>穿透缓存命中率</span>
+              <i class="fa-regular fa-circle-question text-slate-600 text-[11px]"></i>
+            </div>
+            <!-- 半圆环仪表图 -->
+            <div class="flex items-center justify-center my-1 relative h-16">
+              <svg class="w-32 h-16 overflow-visible" viewBox="0 0 100 50">
+                <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#212632" stroke-width="8" stroke-linecap="round" />
+                <path d="M 10 50 A 40 40 0 0 1 82 25" fill="none" stroke="#10b981" stroke-width="8" stroke-linecap="round" />
+              </svg>
+              <div class="absolute bottom-0 text-center">
+                <span class="text-xl font-bold font-mono text-white tracking-tight">89.95%</span>
+              </div>
+            </div>
+            <div class="text-[11px] text-emerald-400 font-medium text-center">Cloudflare 边缘加速已就绪</div>
+          </div>
+
+          <!-- 卡片 2：LLM 调用 / 隧道活跃会话 (大字 991, 成功 921 / 异常 70) -->
+          <div class="bg-app-card border border-app-border rounded-2xl p-4.5 flex flex-col justify-between">
+            <div class="flex items-center space-x-1.5 text-xs text-app-textSub font-medium">
+              <span>穿透连接数</span>
+              <i class="fa-regular fa-circle-question text-slate-600 text-[11px]"></i>
+            </div>
+            <div class="my-2">
+              <div class="text-3xl font-bold font-mono text-white">991</div>
+              <div class="text-xs text-app-textSub mt-1">
+                成功 <span class="text-emerald-400 font-mono font-medium">921</span> / 异常 <span class="text-rose-400 font-mono font-medium">70</span>
+              </div>
+            </div>
+            <div class="text-[11px] text-slate-500">直连延迟 14ms (极佳)</div>
+          </div>
+
+          <!-- 卡片 3：Token 消耗 / 数据流量 (大字 211M, 提示词 210M) -->
+          <div class="bg-app-card border border-app-border rounded-2xl p-4.5 flex flex-col justify-between">
+            <div class="flex items-center space-x-1.5 text-xs text-app-textSub font-medium">
+              <span>吞吐数据量</span>
+              <i class="fa-regular fa-circle-question text-slate-600 text-[11px]"></i>
+            </div>
+            <div class="my-2">
+              <div class="text-3xl font-bold font-mono text-white">211<span class="text-lg font-normal text-slate-400 ml-0.5">MB</span></div>
+              <div class="text-xs text-app-textSub mt-1">响应下行 210MB</div>
+            </div>
+            <div class="text-[11px] text-slate-500">上行请求 1.2MB</div>
+          </div>
+
+          <!-- 卡片 4：价值估算 / 端口与成本 (大字 $211.61, 缓存读写 $94.49) -->
+          <div class="bg-app-card border border-app-border rounded-2xl p-4.5 flex flex-col justify-between">
+            <div class="flex items-center space-x-1.5 text-xs text-app-textSub font-medium">
+              <span>端口健康与诊断</span>
+              <i class="fa-regular fa-circle-question text-slate-600 text-[11px]"></i>
+            </div>
+            <div class="my-2">
+              <div class="text-2xl font-bold font-mono text-amber-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                <span>1 处冲突</span>
+              </div>
+              <div class="text-xs text-slate-300 mt-1">端口 3000 (node.exe) 待释放</div>
+            </div>
+            <button onclick="killProcess(3000, 9412, 'node.exe')" class="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium text-left flex items-center gap-1">
+              <span>一键强杀释放端口</span>
+              <i class="fa-solid fa-arrow-right text-[9px]"></i>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- 底部一整年活跃度矩阵 (复刻图 1 底部 GitHub 风格活跃方块网格) -->
+        <div class="bg-app-card border border-app-border rounded-2xl p-4.5 select-none space-y-2">
+          <div class="flex items-center justify-between text-xs text-app-textSub">
+            <span>穿透服务年度持续在线日历</span>
+            <span class="text-[11px] text-slate-500 font-mono">2026年 累计在线 328 天</span>
+          </div>
+
+          <!-- 极小方块阵列 (7 行 x 多列) -->
+          <div class="grid grid-flow-col grid-rows-7 gap-1 overflow-x-auto py-1">
+            <!-- 自动循环渲染点阵方块 -->
+            <script>
+              // 模拟年度在线方格
+              for(let i=0; i<350; i++) {
+                const active = Math.random() > 0.92;
+                const veryActive = i > 330 && Math.random() > 0.4;
+                const color = veryActive ? 'bg-emerald-400' : (active ? 'bg-emerald-700/80' : 'bg-[#1e232d]');
+                document.write(`<div class="w-2.5 h-2.5 rounded-[2px] ${color}"></div>`);
+              }
+            </script>
+          </div>
+
+          <!-- 月份标签行 (对齐图 1: 11月 1月 2月 3月 4月 5月 6月 7月 8月 9月 10月 11月) -->
+          <div class="flex justify-between text-[10px] text-app-textMuted px-1 font-mono pt-1">
+            <span>11月</span>
+            <span>1月</span>
+            <span>2月</span>
+            <span>3月</span>
+            <span>4月</span>
+            <span>5月</span>
+            <span>6月</span>
+            <span>7月</span>
+            <span>8月</span>
+            <span>9月</span>
+            <span>10月</span>
+            <span>11月</span>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================= 视图 B：系统设置 (像素级复刻图 2 卡片规范) ================= -->
+      <div id="view-settings" class="flex-1 flex flex-col overflow-y-auto px-8 py-6 space-y-4 hidden">
+
+        <!-- 顶部标题与刷新按钮 (对齐图 2) -->
+        <div class="flex items-center justify-between pb-1 shrink-0">
+          <h1 class="text-xl font-bold tracking-tight text-white">设置</h1>
+          <button onclick="showToast('配置已自动持久化', 'success')" class="w-8 h-8 rounded-xl bg-app-card border border-app-border flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+            <i class="fa-solid fa-arrows-rotate text-xs"></i>
+          </button>
+        </div>
+
+        <!-- 卡片 1：调用观测 (复刻图 2 的 "调用观测") -->
+        <div class="bg-app-card border border-app-border rounded-2xl p-5 space-y-3">
+          <div class="text-xs font-semibold text-white">调用观测</div>
+          <div class="flex items-center justify-between pt-1">
+            <div class="space-y-1">
+              <div class="text-sm font-semibold text-slate-200">详细模式</div>
+              <div class="text-xs text-app-textSub">额外保存完整请求和流响应；默认只保存时间、状态与用量。</div>
+            </div>
+            <!-- 勾选框 (复刻图 2 蓝底勾选框) -->
+            <label class="flex items-center space-x-2 cursor-pointer select-none">
+              <input type="checkbox" checked class="w-4 h-4 rounded bg-blue-600 border-transparent text-white focus:ring-0 cursor-pointer">
+              <span class="text-xs text-slate-200 font-medium">详细模式</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 卡片 2：端口设置 (复刻图 2 的 "端口设置") -->
+        <div class="bg-app-card border border-app-border rounded-2xl p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-semibold text-white">端口设置</div>
+            <button onclick="showToast('正在打开端口配置...', 'info')" class="text-xs font-medium text-sky-400 hover:underline">编辑</button>
+          </div>
+
+          <div class="flex items-center space-x-12 text-xs pt-1">
+            <div class="flex items-center space-x-3">
+              <span class="text-app-textSub">代理端口</span>
+              <span class="font-mono text-white font-semibold text-sm">51345</span>
+            </div>
+            <div class="flex items-center space-x-3">
+              <span class="text-app-textSub">服务端口</span>
+              <span class="font-mono text-white font-semibold text-sm">50700</span>
+            </div>
+          </div>
+
+          <div class="text-xs text-app-textSub pt-1">
+            端口被占用时会自动选择新的随机端口并保存。修改后需要重启软件才会生效。
+          </div>
+        </div>
+
+        <!-- 卡片 3：代理设置 (复刻图 2 的 "代理设置") -->
+        <div class="bg-app-card border border-app-border rounded-2xl p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-semibold text-white">代理设置</div>
+            <button onclick="showToast('代理方式已设为直连', 'info')" class="text-xs font-medium text-sky-400 hover:underline">编辑</button>
+          </div>
+
+          <div class="flex items-center justify-between text-xs pt-1">
+            <span class="text-app-textSub">代理方式</span>
+            <span class="text-slate-300 font-medium">默认</span>
+          </div>
+        </div>
+
+        <!-- 卡片 4：TAB 设置 (复刻图 2 的 "TAB 设置") -->
+        <div class="bg-app-card border border-app-border rounded-2xl p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-semibold text-white flex items-center gap-1.5">
+              <i class="fa-solid fa-cube text-slate-400 text-xs"></i>
+              <span>TAB 设置</span>
+            </div>
+            <button onclick="showToast('TAB 设置已就绪', 'info')" class="text-xs font-medium text-sky-400 hover:underline">编辑</button>
+          </div>
+
+          <div class="flex items-center justify-between text-xs pt-1">
+            <span class="text-app-textSub">TAB 选择</span>
+            <span class="text-slate-300 font-medium">使用公益服务</span>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================= 视图 C：隧道管理列表 (高精颗粒度多隧道管理) ================= -->
+      <div id="view-tunnels" class="flex-1 flex flex-col overflow-y-auto px-8 py-6 space-y-4 hidden">
+
+        <div class="flex items-center justify-between pb-1 shrink-0">
+          <div class="space-y-0.5">
+            <h1 class="text-xl font-bold tracking-tight text-white">隧道管理</h1>
+            <p class="text-xs text-app-textSub">管理当前运行在本地端口与 Docker 容器上的内网穿透实例</p>
+          </div>
+
+          <button onclick="openModal('addModal')" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all">
+            <i class="fa-solid fa-plus text-xs"></i>
+            <span>新建穿透条目</span>
+          </button>
+        </div>
+
+        <!-- 列表卡片 1：ops-center-web (Cloudflare Quick, 运行中) -->
+        <div class="bg-app-card border border-app-border hover:border-app-borderLight rounded-2xl p-5 transition-all shadow-xs" id="tunnel-card-1">
+          <div class="flex items-start justify-between">
+            <div class="space-y-2.5 flex-1">
+              <div class="flex items-center space-x-3">
+                <span class="text-base font-bold text-white tracking-wide">ops-center-web</span>
+                <span class="text-[10px] font-semibold bg-amber-950/60 text-amber-300 border border-amber-800/60 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <i class="fa-brands fa-cloudflare text-amber-400"></i> Cloudflare Quick
+                </span>
+                <span class="text-[10px] font-medium bg-emerald-950/70 text-emerald-400 border border-emerald-800/60 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 font-mono">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                  运行中 (PID: 12404)
+                </span>
+                <span class="text-[11px] text-slate-400 bg-slate-800/70 border border-slate-700/60 px-2 py-0.5 rounded flex items-center gap-1">
+                  <i class="fa-brands fa-docker text-blue-400"></i> 映射: ops-center-web:80
+                </span>
+              </div>
+
+              <div class="flex items-center space-x-5 text-xs text-app-textSub">
+                <div>映射端口: <span class="font-mono text-white font-semibold bg-slate-800 px-1.5 py-0.5 rounded">127.0.0.1:8080</span></div>
+                <div class="text-emerald-400 flex items-center gap-1"><i class="fa-solid fa-circle-check text-[11px]"></i> 本地服务正常响应 (HTTP 200)</div>
+                <div class="text-slate-600">|</div>
+                <div class="text-slate-400 font-mono">已运行 03:14:22</div>
+              </div>
+
+              <!-- 公网地址栏 -->
+              <div class="mt-2 flex items-center space-x-2 bg-app-window/80 border border-app-border rounded-xl p-2 max-w-2xl">
+                <span class="text-xs text-slate-500 font-medium px-1">公网地址:</span>
+                <a href="https://rapid-alpine-tunnel.trycloudflare.com" target="_blank" class="font-mono text-xs font-semibold text-sky-400 hover:text-sky-300 truncate flex-1 flex items-center gap-1.5">
+                  <i class="fa-solid fa-earth-asia text-[11px]"></i>
+                  <span>https://rapid-alpine-tunnel.trycloudflare.com</span>
+                </a>
+                <button onclick="copyUrl('https://rapid-alpine-tunnel.trycloudflare.com')" class="px-2.5 py-1 text-[11px] font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors flex items-center gap-1">
+                  <i class="fa-regular fa-copy"></i>
+                  <span>复制</span>
+                </button>
+                <a href="https://rapid-alpine-tunnel.trycloudflare.com" target="_blank" class="px-2.5 py-1 text-[11px] font-medium text-blue-300 bg-blue-900/50 hover:bg-blue-800/50 rounded-lg border border-blue-700/50 transition-colors flex items-center gap-1">
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                  <span>打开</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- 控制按钮 -->
+            <div class="flex items-center space-x-2.5 pl-4">
+              <button onclick="toggleLog('ops-center-web', 8080)" class="text-xs text-slate-300 hover:text-white bg-slate-800/90 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700/80 transition-colors flex items-center gap-1.5">
+                <i class="fa-solid fa-terminal text-slate-400 text-xs"></i>
+                <span>实时日志</span>
+              </button>
+              <button onclick="toggleTunnelBtn(1)" id="btn-toggle-1" class="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors flex items-center gap-1.5">
+                <i class="fa-solid fa-pause"></i>
+                <span>停止</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 列表卡片 2：rongde-workbench-dev (Docker 正常监听演示，绝不误报冲突) -->
+        <div class="bg-app-card border border-app-border hover:border-app-borderLight rounded-2xl p-5 transition-all shadow-xs" id="tunnel-card-2">
+          <div class="flex items-start justify-between">
+            <div class="space-y-2.5 flex-1">
+              <div class="flex items-center space-x-3">
+                <span class="text-base font-bold text-white tracking-wide">rongde-workbench-dev</span>
+                <span class="text-[10px] font-semibold bg-amber-950/60 text-amber-300 border border-amber-800/60 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <i class="fa-brands fa-cloudflare text-amber-400"></i> Cloudflare Quick
+                </span>
+                <span class="text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 font-mono">
+                  <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                  已停止
+                </span>
+                <span class="text-[11px] text-slate-400 bg-slate-800/70 border border-slate-700/60 px-2 py-0.5 rounded flex items-center gap-1">
+                  <i class="fa-brands fa-docker text-blue-400"></i> 容器: rongde-workbench-dev
+                </span>
+              </div>
+
+              <div class="flex items-center space-x-4 text-xs text-app-textSub">
+                <div>目标端口: <span class="font-mono text-white font-semibold bg-slate-800 px-1.5 py-0.5 rounded">127.0.0.1:3307</span></div>
+                <!-- 智能识别 Docker 服务就绪状态，绝不误报冲突强杀 -->
+                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
+                  <i class="fa-solid fa-circle-check text-xs"></i>
+                  <span>容器服务监听中 (Docker 代理就绪)</span>
+                </div>
+              </div>
+
+              <div class="mt-2 flex items-center space-x-2 bg-app-window/80 border border-app-border rounded-xl p-2 max-w-2xl text-xs text-slate-400">
+                <i class="fa-solid fa-circle-info text-slate-500"></i>
+                <span>点击右侧【启动】即可立即生成免费临时的 trycloudflare 公网访问域名</span>
+              </div>
+            </div>
+
+            <div class="flex items-center space-x-2.5 pl-4">
+              <button onclick="toggleLog('rongde-workbench-dev', 3307)" class="text-xs text-slate-300 hover:text-white bg-slate-800/90 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700/80 transition-colors flex items-center gap-1.5">
+                <i class="fa-solid fa-terminal text-slate-400 text-xs"></i>
+                <span>实时日志</span>
+              </button>
+              <button onclick="toggleTunnelBtn(2)" id="btn-toggle-2" class="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors flex items-center gap-1.5">
+                <i class="fa-solid fa-play"></i>
+                <span>启动</span>
+              </button>
+            </div>
+          </div>
+        </div>
+                <i class="fa-solid fa-play"></i>
+                <span>启动</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 列表卡片 3：MySQL 远程只读查询端 -->
+        <div class="bg-app-card border border-app-border hover:border-app-borderLight rounded-2xl p-5 transition-all shadow-xs" id="tunnel-card-3">
+          <div class="flex items-start justify-between">
+            <div class="space-y-2.5 flex-1">
+              <div class="flex items-center space-x-3">
+                <span class="text-base font-bold text-white tracking-wide">MySQL 远程只读查询端</span>
+                <span class="text-[10px] font-semibold bg-amber-950/60 text-amber-300 border border-amber-800/60 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <i class="fa-brands fa-cloudflare text-amber-400"></i> Cloudflare 专属
+                </span>
+                <span class="text-[10px] font-medium bg-emerald-950/70 text-emerald-400 border border-emerald-800/60 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 font-mono">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                  运行中 (PID: 8820)
+                </span>
+                <span class="text-[11px] text-slate-400 bg-slate-800/70 border border-slate-700/60 px-2 py-0.5 rounded flex items-center gap-1">
+                  <i class="fa-brands fa-docker text-blue-400"></i> 映射: mysql:8.0
+                </span>
+              </div>
+
+              <div class="flex items-center space-x-5 text-xs text-app-textSub">
+                <div>映射端口: <span class="font-mono text-white font-semibold bg-slate-800 px-1.5 py-0.5 rounded">127.0.0.1:3306</span></div>
+                <div class="text-emerald-400 flex items-center gap-1"><i class="fa-solid fa-circle-check text-[11px]"></i> 数据库端口就绪</div>
+              </div>
+
+              <div class="mt-2 flex items-center space-x-2 bg-app-window/80 border border-app-border rounded-xl p-2 max-w-2xl">
+                <span class="text-xs text-slate-500 font-medium px-1">专属域名:</span>
+                <a href="https://db-query.mycorp.dev" target="_blank" class="font-mono text-xs font-semibold text-emerald-400 hover:underline truncate flex-1 flex items-center gap-1.5">
+                  <i class="fa-solid fa-lock text-[10px]"></i>
+                  <span>https://db-query.mycorp.dev</span>
+                </a>
+                <button onclick="copyUrl('https://db-query.mycorp.dev')" class="px-2.5 py-1 text-[11px] font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors flex items-center gap-1">
+                  <i class="fa-regular fa-copy"></i>
+                  <span>复制</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="flex items-center space-x-2.5 pl-4">
+              <button onclick="toggleLog('MySQL 远程只读查询端', 3306)" class="text-xs text-slate-300 hover:text-white bg-slate-800/90 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700/80 transition-colors flex items-center gap-1.5">
+                <i class="fa-solid fa-terminal text-slate-400 text-xs"></i>
+                <span>实时日志</span>
+              </button>
+              <button onclick="toggleTunnelBtn(3)" id="btn-toggle-3" class="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors flex items-center gap-1.5">
+                <i class="fa-solid fa-pause"></i>
+                <span>停止</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= 底部极简黑色终端日志抽屉 ================= -->
+      <div id="log-drawer" class="bg-[#090b0e] border-t border-app-border text-slate-300 transition-all duration-300 flex flex-col h-40 shadow-2xl shrink-0">
+        <div class="h-7 bg-[#101216] border-b border-app-border px-4 flex items-center justify-between text-xs select-none">
+          <div class="flex items-center space-x-2.5">
+            <i class="fa-solid fa-terminal text-emerald-400 text-xs"></i>
+            <span class="font-semibold text-slate-300 text-[11px]">控制台实时输出:</span>
+            <span id="log-target" class="text-sky-400 font-mono text-[11px] font-semibold">ops-center-web (8080)</span>
+          </div>
+          <div class="flex items-center space-x-3 text-[11px]">
+            <button onclick="clearLogs()" class="hover:text-white text-slate-400 px-2 py-0.5 rounded hover:bg-slate-800 transition-colors">
+              <i class="fa-solid fa-trash-can mr-1"></i>清空
+            </button>
+            <button onclick="toggleLogHeight()" class="hover:text-white text-slate-400 px-2 py-0.5 rounded hover:bg-slate-800 transition-colors">
+              <i class="fa-solid fa-chevron-down" id="log-chevron"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="log-body" class="flex-1 p-3 font-mono text-[11px] leading-relaxed overflow-y-auto space-y-1 text-slate-300 select-text">
+          <div><span class="text-slate-500">[14:32:01]</span> <span class="text-emerald-400">[INFO]</span> cloudflared.exe tunnel --url http://127.0.0.1:8080 启动成功</div>
+          <div><span class="text-slate-500">[14:32:02]</span> <span class="text-sky-400">[CONN]</span> Registered tunnel connection location=HKG ip=198.41.200.1</div>
+          <div><span class="text-slate-500">[14:32:03]</span> <span class="text-purple-400">[ROUTE]</span> 自动捕获分配域名: <span class="text-amber-300 underline font-semibold">https://rapid-alpine-tunnel.trycloudflare.com</span></div>
+          <div><span class="text-slate-500">[14:32:15]</span> <span class="text-slate-400">[HTTP]</span> GET /api/v1/health HTTP/1.1 -> 200 OK (16ms)</div>
+        </div>
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- ================= 新建穿透弹窗 (Modal) ================= -->
+  <div id="addModal" class="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-app-card rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-app-borderLight animate-in fade-in duration-200">
+
+      <div class="px-6 py-4 bg-app-sidebar border-b border-app-border flex items-center justify-between">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-6 h-6 rounded bg-blue-600 text-white flex items-center justify-center text-xs">
+            <i class="fa-solid fa-plus"></i>
+          </div>
+          <h3 class="font-bold text-white text-sm">新建内网穿透条目</h3>
+        </div>
+        <button onclick="closeModal('addModal')" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1.5">隧道名称</label>
+          <input type="text" id="m-name" placeholder="例如: 财务分析前端服务" class="w-full px-3 py-2 bg-app-window border border-app-border rounded-xl text-white focus:border-blue-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1.5">目标端口 (Target Port)</label>
+          <div class="flex gap-2">
+            <input type="number" id="m-port" value="5173" class="w-1/3 px-3 py-2 bg-app-window border border-app-border rounded-xl text-white font-mono font-semibold focus:border-blue-500 focus:outline-none">
+            <select onchange="applyDocker(this.value)" class="flex-1 px-3 py-2 bg-app-window border border-app-border rounded-xl text-slate-300 focus:border-blue-500 focus:outline-none truncate">
+              <option value="">⚡ 从运行中的 Docker 容器快捷选择...</option>
+              <option value="8080|ops-center-web">ops-center-web (映射 8080)</option>
+              <option value="4000|ops-center-api">ops-center-api (映射 4000)</option>
+              <option value="6379|redis-cache">redis-cache (映射 6379)</option>
+            </select>
+          </div>
+          <div class="text-[11px] text-slate-500 mt-1">支持 Docker 映射端口，也可纯手动填入本地任何监听端口。</div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1.5">穿透服务商</label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="border border-blue-600 bg-blue-950/30 rounded-xl p-3 flex items-center space-x-3 cursor-pointer">
+              <input type="radio" name="p_provider" value="cloudflare" checked class="text-blue-600 focus:ring-0 bg-slate-900 border-slate-700">
+              <div>
+                <div class="font-bold text-white flex items-center gap-1">
+                  <i class="fa-brands fa-cloudflare text-amber-400"></i> Cloudflare
+                </div>
+                <div class="text-[10px] text-slate-400">免费无限制、高并发</div>
+              </div>
+            </label>
+
+            <label class="border border-app-border hover:border-slate-700 rounded-xl p-3 flex items-center space-x-3 cursor-pointer">
+              <input type="radio" name="p_provider" value="ngrok" class="text-blue-600 focus:ring-0 bg-slate-900 border-slate-700">
+              <div>
+                <div class="font-bold text-white flex items-center gap-1">
+                  <i class="fa-solid fa-cube text-indigo-400"></i> ngrok
+                </div>
+                <div class="text-[10px] text-slate-400">稳定易用</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="bg-app-window p-3.5 rounded-xl border border-app-border space-y-2">
+          <label class="block font-semibold text-slate-300">域名分配模式</label>
+          <div class="flex items-center space-x-4 text-slate-300">
+            <label class="flex items-center space-x-1.5 cursor-pointer">
+              <input type="radio" name="p_mode" value="quick" checked onchange="toggleCustomDomain(false)" class="text-blue-600 focus:ring-0 bg-slate-900 border-slate-700">
+              <span>自动随机分配公网域名 (免配置)</span>
+            </label>
+            <label class="flex items-center space-x-1.5 cursor-pointer">
+              <input type="radio" name="p_mode" value="custom" onchange="toggleCustomDomain(true)" class="text-blue-600 focus:ring-0 bg-slate-900 border-slate-700">
+              <span>专属自定义域名</span>
+            </label>
+          </div>
+          <div id="m-custom-domain" class="hidden pt-1.5">
+            <input type="text" placeholder="输入自定义二级域名，如 app.mydomain.com" class="w-full px-3 py-2 bg-app-card border border-app-border rounded-lg text-white font-mono text-xs focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 py-3.5 bg-app-sidebar border-t border-app-border flex justify-end space-x-2.5">
+        <button onclick="closeModal('addModal')" class="px-4 py-2 rounded-xl text-slate-300 hover:bg-slate-800 text-xs font-medium transition-colors">取消</button>
+        <button onclick="createTunnel()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors">保存并加入</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= Cloudflare 配置弹窗 (Modal) ================= -->
+  <div id="cfModal" class="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-app-card rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-app-borderLight animate-in fade-in duration-200">
+      <div class="px-6 py-4 bg-app-sidebar border-b border-app-border flex items-center justify-between">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-sm">
+            <i class="fa-brands fa-cloudflare"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-sm">Cloudflare Tunnel 引擎配置</h3>
+            <p class="text-[11px] text-slate-400">配置 Zero Trust 专属 Token 与隧道运行参数</p>
+          </div>
+        </div>
+        <button onclick="closeModal('cfModal')" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4 text-xs">
+        <!-- 二进制状态栏 -->
+        <div class="p-3 bg-app-window rounded-xl border border-app-border flex items-center justify-between">
+          <div class="flex items-center space-x-2.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+            <div>
+              <div class="font-mono font-semibold text-white text-xs">cloudflared.exe</div>
+              <div class="text-[10px] text-slate-500 font-mono">D:\dev\cloudflared.exe (就绪可用)</div>
+            </div>
+          </div>
+          <button onclick="showToast('正在重新检测 Cloudflare 二进制...', 'info')" class="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors">
+            重新检测
+          </button>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1.5">Cloudflare Tunnel Token</label>
+          <input type="password" value="eyJhIjoiY2xvdWRmbGFyZWQtdG9rZW4tZXhhbXBsZS0xMjM0NTY3ODkiLCJ0IjoiZGV2In0=" placeholder="粘贴 Zero Trust 仪表盘中的 Tunnel Token" class="w-full px-3 py-2 bg-app-window border border-app-border rounded-xl text-white font-mono text-xs focus:border-blue-500 focus:outline-none">
+          <div class="text-[10px] text-slate-500 mt-1">当前 Token: eyJh...****...NzQ=</div>
+        </div>
+
+        <div class="p-3 bg-app-window/60 rounded-xl border border-app-border text-[11px] text-slate-400 leading-relaxed">
+          <strong class="text-slate-300">💡 模式说明：</strong><br>
+          • <strong>快速临时模式</strong>：无需 Token，启动即分配随机 *.trycloudflare.com 域名。<br>
+          • <strong>专属固定模式</strong>：填入上方 Token，可绑定在 Cloudflare Zero Trust 托管的私有二级域名。
+        </div>
+      </div>
+
+      <div class="px-6 py-3.5 bg-app-sidebar border-t border-app-border flex justify-end space-x-2.5">
+        <button onclick="closeModal('cfModal')" class="px-4 py-2 rounded-xl text-slate-300 hover:bg-slate-800 text-xs font-medium transition-colors">取消</button>
+        <button onclick="closeModal('cfModal'); showToast('Cloudflare 凭证配置已更新', 'success');" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors">保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ngrok 配置弹窗 (Modal) ================= -->
+  <div id="ngModal" class="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-app-card rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-app-borderLight animate-in fade-in duration-200">
+      <div class="px-6 py-4 bg-app-sidebar border-b border-app-border flex items-center justify-between">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-sm">
+            <i class="fa-solid fa-cube"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-sm">ngrok 引擎配置</h3>
+            <p class="text-[11px] text-slate-400">配置 ngrok 官方 Authtoken 凭据与自定义域名选项</p>
+          </div>
+        </div>
+        <button onclick="closeModal('ngModal')" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4 text-xs">
+        <!-- 二进制状态栏 -->
+        <div class="p-3 bg-app-window rounded-xl border border-app-border flex items-center justify-between">
+          <div class="flex items-center space-x-2.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+            <div>
+              <div class="font-mono font-semibold text-white text-xs">ngrok.exe</div>
+              <div class="text-[10px] text-slate-500 font-mono">D:\dev\ngrok.exe (就绪可用)</div>
+            </div>
+          </div>
+          <button onclick="showToast('正在重新检测 ngrok 二进制...', 'info')" class="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors">
+            重新检测
+          </button>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1.5">ngrok Authtoken</label>
+          <input type="password" value="2abcd1234efgh5678ijkl_ngrok_token_val" placeholder="粘贴 ngrok 仪表盘提供的 Authtoken" class="w-full px-3 py-2 bg-app-window border border-app-border rounded-xl text-white font-mono text-xs focus:border-blue-500 focus:outline-none">
+          <div class="text-[10px] text-slate-500 mt-1">当前 Token: 2abc...****..._val</div>
+        </div>
+
+        <div class="p-3 bg-app-window/60 rounded-xl border border-app-border text-[11px] text-slate-400 leading-relaxed">
+          <strong class="text-slate-300">💡 使用说明：</strong><br>
+          • 注册 ngrok 账号即可在控制台免费获取 Authtoken。<br>
+          • 配置后，可获得更稳定的连接并能绑定个人免费固定域名。
+        </div>
+      </div>
+
+      <div class="px-6 py-3.5 bg-app-sidebar border-t border-app-border flex justify-end space-x-2.5">
+        <button onclick="closeModal('ngModal')" class="px-4 py-2 rounded-xl text-slate-300 hover:bg-slate-800 text-xs font-medium transition-colors">取消</button>
+        <button onclick="closeModal('ngModal'); showToast('ngrok 凭证配置已更新', 'success');" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors">保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div id="toast" class="fixed top-11 right-6 bg-slate-800/95 border border-slate-700 text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 transform translate-y-[-60px] opacity-0 transition-all duration-300 z-50 pointer-events-none">
+    <i class="fa-solid fa-circle-check text-emerald-400" id="toast-icon"></i>
+    <span id="toast-msg">操作成功</span>
+  </div>
+
+  <script>
+    // 切换主页面 Tab
+    function switchTab(tab) {
+      document.getElementById('view-dashboard').classList.add('hidden');
+      document.getElementById('view-settings').classList.add('hidden');
+      document.getElementById('view-tunnels').classList.add('hidden');
+
+      const navDashboard = document.getElementById('nav-dashboard');
+      const navSettings = document.getElementById('nav-settings');
+      const navTunnels = document.getElementById('nav-tunnels');
+
+      const inactiveCls = 'w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-app-textSub hover:text-white hover:bg-app-card/60 transition-colors';
+      const activeCls = 'w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-semibold bg-[#1e222b] text-white transition-all shadow-xs border border-slate-700/20';
+
+      navDashboard.className = inactiveCls;
+      navSettings.className = inactiveCls;
+      navTunnels.className = inactiveCls;
+
+      if (tab === 'dashboard') {
+        document.getElementById('view-dashboard').classList.remove('hidden');
+        navDashboard.className = activeCls;
+      } else if (tab === 'settings') {
+        document.getElementById('view-settings').classList.remove('hidden');
+        navSettings.className = activeCls;
+      } else if (tab === 'tunnels') {
+        document.getElementById('view-tunnels').classList.remove('hidden');
+        navTunnels.className = activeCls;
+      }
+    }
+
+    // 时间范围胶囊点击
+    function selectTimeRange(btn) {
+      document.querySelectorAll('.time-tab').forEach(b => {
+        b.className = 'time-tab px-3 py-1 rounded-lg text-app-textSub hover:text-white transition-colors';
+      });
+      btn.className = 'time-tab px-3 py-1 rounded-lg text-white font-medium bg-[#2a2f3a] shadow-xs';
+    }
+
+    // 复制 URL
+    function copyUrl(text) {
+      navigator.clipboard.writeText(text);
+      showToast('已复制公网访问地址: ' + text, 'success');
+    }
+
+    // Toast
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastMsg.innerText = msg;
+      if (type === 'success') {
+        toastIcon.className = 'fa-solid fa-circle-check text-emerald-400';
+      } else if (type === 'warn') {
+        toastIcon.className = 'fa-solid fa-triangle-exclamation text-amber-400';
+      } else {
+        toastIcon.className = 'fa-solid fa-circle-info text-sky-400';
+      }
+
+      toast.classList.remove('translate-y-[-60px]', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-[-60px]', 'opacity-0');
+      }, 2500);
+    }
+
+    // 一键强杀冲突进程
+    function killProcess(port, pid, procName) {
+      const actionBox = document.getElementById('conflict-action-box');
+      const badge = document.getElementById('badge-conflict');
+      const card = document.getElementById('tunnel-card-2');
+
+      if (actionBox) {
+        actionBox.innerHTML = `<span class="text-emerald-400 font-medium text-xs"><i class="fa-solid fa-check mr-1"></i>端口 ${port} 已释放 (PID ${pid} ${procName} 已终止)</span>`;
+        actionBox.className = 'flex items-center gap-2 bg-emerald-950/60 text-emerald-200 px-2.5 py-1 rounded-lg border border-emerald-800/80';
+      }
+      if (badge) {
+        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> 已就绪 (端口空闲)`;
+        badge.className = 'text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-0.5 rounded-full flex items-center gap-1';
+      }
+      if (card) {
+        card.className = 'bg-app-card border border-app-border hover:border-app-borderLight rounded-2xl p-5 transition-all shadow-xs';
+      }
+
+      showToast(`已执行 taskkill /F /PID ${pid} 强制释放端口 ${port}！`, 'success');
+    }
+
+    // 启停开关
+    function toggleTunnelBtn(id) {
+      const btn = document.getElementById(`btn-toggle-${id}`);
+      const isRunning = btn.innerText.includes('停止');
+
+      if (isRunning) {
+        btn.innerHTML = `<i class="fa-solid fa-play"></i><span>启动</span>`;
+        btn.className = 'text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors flex items-center gap-1.5';
+        showToast(`隧道 #${id} 已安全断开`, 'info');
+      } else {
+        btn.innerHTML = `<i class="fa-solid fa-pause"></i><span>停止</span>`;
+        btn.className = 'text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors flex items-center gap-1.5';
+        showToast(`隧道 #${id} 已重新连接上线`, 'success');
+      }
+    }
+
+    // 日志抽屉
+    function toggleLog(name, port) {
+      const drawer = document.getElementById('log-drawer');
+      const target = document.getElementById('log-target');
+      target.innerText = `${name} (${port})`;
+      drawer.style.height = '160px';
+    }
+    function toggleLogHeight() {
+      const drawer = document.getElementById('log-drawer');
+      const chevron = document.getElementById('log-chevron');
+      if (drawer.style.height === '28px') {
+        drawer.style.height = '160px';
+        chevron.className = 'fa-solid fa-chevron-down';
+      } else {
+        drawer.style.height = '28px';
+        chevron.className = 'fa-solid fa-chevron-up';
+      }
+    }
+    function clearLogs() {
+      document.getElementById('log-body').innerHTML = '<div class="text-slate-600 italic">[日志已清空]</div>';
+    }
+
+    // 模态弹窗
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function toggleCustomDomain(show) {
+      document.getElementById('m-custom-domain').classList.toggle('hidden', !show);
+    }
+    function applyDocker(val) {
+      if (!val) return;
+      const [port, name] = val.split('|');
+      document.getElementById('m-port').value = port;
+      if (!document.getElementById('m-name').value) {
+        document.getElementById('m-name').value = name;
+      }
+      showToast(`已快捷带入端口: ${port}`, 'info');
+    }
+    function createTunnel() {
+      closeModal('addModal');
+      showToast('新建隧道成功！已保存到配置中', 'success');
+    }
+
+    function refreshData() {
+      const icon = document.getElementById('dash-refresh');
+      icon.classList.add('fa-spin');
+      setTimeout(() => {
+        icon.classList.remove('fa-spin');
+        showToast('已完成 Docker 容器与宿主机端口实时同步', 'success');
+      }, 500);
+    }
+  </script>
+</body>
+</html>

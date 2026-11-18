@@ -1,0 +1,48 @@
+name: Bug 反馈 (Bug Report)
+description: 提交程序错误、崩溃、端口占用识别异常或运行异常报告
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你反馈问题！在提交之前，请确保已经浏览过已有的 Issues，并查阅了 [用户指南](docs/USER_GUIDE.md)。
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 清晰简明地描述该 Bug 是什么。
+      placeholder: 例如：启动 Cloudflare Tunnel 时提示连接失败，无法获取公网域名...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤
+      description: 请详细写出复现该问题的具体步骤。
+      placeholder: |
+        1. 启动 Easy Tunnel
+        2. 点击 "+ 新建穿透条目"
+        3. 选择 Docker 容器 ops-center-api-1
+        4. 点击启动
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+      description: 描述你期望程序应当如何运行。
+  - type: textarea
+    id: logs
+    attributes:
+      label: 控制台日志 / 截图
+      description: 请附上底栏控制台实时输出的错误日志或相关截图。
+      render: shell
+  - type: input
+    id: environment
+    attributes:
+      label: 运行环境
+      description: 请填写你的操作系统与依赖版本。
+      placeholder: Windows 11 23H2 / Docker Desktop 4.35 / Easy Tunnel v1.0.1
+    validations:
+      required: true

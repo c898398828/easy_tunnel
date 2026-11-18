@@ -1,0 +1,1 @@
+# Keep dist directory in Git. Packaged installers (.exe / .zip) should be uploaded to GitHub Releases.

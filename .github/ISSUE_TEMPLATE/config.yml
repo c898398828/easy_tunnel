@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 官方使用文档 (User Guide)
+    url: https://github.com/c898398828/easy_tunnel/blob/main/docs/USER_GUIDE.md
+    about: 查阅详细的使用指南、Cloudflare 域名配置教程与排错指南
+  - name: 架构设计详述 (Architecture Spec)
+    url: https://github.com/c898398828/easy_tunnel/blob/main/docs/easy-tunnel-design.md
+    about: 深入了解 Easy Tunnel 的进程管理与 Flutter Windows 架构规范
