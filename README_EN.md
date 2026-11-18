@@ -6,7 +6,7 @@
 
 ### Modern Windows Local Tunneling & Container Port Manager
 
-**Crafted with Cursor Assistant v1.0.1 Dark Aesthetic Guidelines**  
+**Modern Dark Minimalist Desktop Aesthetic**  
 *Dual-Engine Concurrent Tunneling (Cloudflare Tunnel + ngrok) · Docker Container Awareness · Port Conflict Resolution · Real-time Metrics Dashboard*
 
 <p align="center">
@@ -15,7 +15,7 @@
   <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Framework-Flutter%203.24+-02569B.svg?style=flat-square&logo=flutter" alt="Flutter" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square" alt="License" /></a>
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome" /></a>
-  <img src="https://img.shields.io/badge/UI%20Style-Cursor%20Dark-14161B.svg?style=flat-square" alt="Dark Theme" />
+  <img src="https://img.shields.io/badge/UI%20Style-Dark%20Minimalist-14161B.svg?style=flat-square" alt="Dark Theme" />
 </p>
 
 <p align="center">
@@ -74,7 +74,7 @@ Traditional solutions present frequent headaches:
 - 🛡️ **Port Conflict Detection & Safe Killing**
   - Smart recognition of genuine services vs. Docker Desktop proxies (`com.docker.backend.exe` is never misdiagnosed as a conflict);
   - Direct PID alerts and a red **【Kill Process】** button (`taskkill /F /T`) to safely release locked ports.
-- 🎨 **Cursor Assistant v1.0.1 Dark Theme**
+- 🎨 **Modern Dark Minimalist Aesthetic**
   Ultra-clean, dark aesthetic (`#0e1013` / `#14161b` / `#181b22`) with smooth transitions and compact single-screen layout.
 - 🧰 **Embedded Live Console Drawer**
   Integrated terminal console drawer at the bottom. Streams live logs per tunnel with syntax-colored keywords (red errors, cyan URLs, green connections).
@@ -198,7 +198,7 @@ easy_tunnel/
 │   │   │   └── widgets/          # Charts, metric tiles, cards, log drawer
 │   │   ├── app.dart              # Root application widget
 │   │   ├── main.dart             # Program entrypoint & tray init
-│   │   └── theme.dart            # Cursor Dark theme design tokens
+│   │   └── theme.dart            # Dark theme design tokens
 │   ├── test/                     # Service & model unit test suites
 │   ├── windows/                  # Windows C++ runner & manifests
 │   └── pubspec.yaml              # Flutter dependency manifest

@@ -6,7 +6,7 @@
 
 ### 现代化 Windows 内网穿透与本地端口/容器管理管家
 
-**对标 Cursor 助手 v1.0.1 极致暗黑极简桌面视觉规范**  
+**现代化极致暗黑极简桌面视觉规范**  
 *支持 Cloudflare Tunnel 与 ngrok 双引擎并发托管 · Docker 容器智能感知 · 本地端口防误杀释放 · 实时数据观测大屏*
 
 <p align="center">
@@ -15,7 +15,7 @@
   <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Framework-Flutter%203.24+-02569B.svg?style=flat-square&logo=flutter" alt="Flutter" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square" alt="License" /></a>
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome" /></a>
-  <img src="https://img.shields.io/badge/UI%20Style-Cursor%20Dark-14161B.svg?style=flat-square" alt="Dark Theme" />
+  <img src="https://img.shields.io/badge/UI%20Style-Dark%20Minimalist-14161B.svg?style=flat-square" alt="Dark Theme" />
 </p>
 
 <p align="center">
@@ -74,7 +74,7 @@
 - 🛡️ **本地端口健康监控与防误杀释放**
   - 智能区分本地服务与 Docker 容器代理（精准识别 `com.docker.backend.exe`，不误杀正常容器）；
   - 发现异常残留进程占用目标端口时，提供直观的 PID 预警与红色的 **【一键强杀释放】** 按钮（树形强制终结子进程）。
-- 🎨 **对标 Cursor 助手 v1.0.1 暗黑极简视觉**
+- 🎨 **现代化极简暗黑视觉**
   高质感深色主题（`#0e1013` / `#14161b` / `#181b22`）、紧凑无冗余的单屏卡片布局、平滑呼吸微动效与流畅过渡。
 - 🧰 **内置实时控制台日志抽屉**
   集成于隧道卡片下方的极简黑色终端抽屉，支持各隧道日志独立流式展示、关键字色彩高亮（报错红、域名蓝、成功绿）、平滑滚动与一键清空。
@@ -198,7 +198,7 @@ easy_tunnel/
 │   │   │   └── widgets/          # 监控图表、性能看板、状态卡片、日志抽屉等
 │   │   ├── app.dart              # 主应用结构
 │   │   ├── main.dart             # 程序入口与托盘初始化
-│   │   └── theme.dart            # Cursor 极简暗黑主题规范定义
+│   │   └── theme.dart            # 极简暗黑主题规范定义
 │   ├── test/                     # 完整的服务与逻辑单元测试集
 │   ├── windows/                  # Windows 原生 C++ Runner 与资源清单
 │   └── pubspec.yaml              # Flutter 项目依赖配置

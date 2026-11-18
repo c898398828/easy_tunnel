@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 构建一款 Windows 桌面端 Flutter 应用，支持多隧道并发内网穿透（Cloudflare / ngrok）、Docker 端口智能识别、端口冲突一键强杀、系统托盘常驻，UI 对标 Cursor 助手 v1.0.1 暗黑极简风格。
+**Goal:** 构建一款 Windows 桌面端 Flutter 应用，支持多隧道并发内网穿透（Cloudflare / ngrok）、Docker 端口智能识别、端口冲突一键强杀、系统托盘常驻，UI 采用现代化暗黑极简风格。
 
 **Architecture:** Flutter 纯原生进程托管架构：Dart 通过 `Process` 直接拉起 `cloudflared.exe` / `ngrok.exe` / `docker.exe` / `netstat` / `taskkill`，实时解析子进程输出流捕获公网域名；无后台守护进程，应用退出即级联清理所有子进程。
 
